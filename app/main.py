@@ -1,3 +1,7 @@
+from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, List
@@ -61,6 +65,17 @@ class PortfolioResponse(BaseModel):
 
 # --- INICIALIZANDO A API ---
 app = FastAPI(title="Masterfy API", description="API para rastreamento de investimentos", version="0.1")
+
+# --- CONFIGURAÇÃO DO FRONTEND (JINJA2) ---
+# Aponta para a pasta templates que criamos
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, '..', 'templates'))
+
+# Cria um filtro para formatar dinheiro no padrão Brasil (1.000,00)
+def format_br(valor: float):
+    return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+# Ensina o Jinja2 a usar esse filtro com o nome 'moeda'
+templates.env.filters["moeda"] = format_br
 
 # --- ROTAS DE ATIVOS E TRANSAÇÕES ---
 @app.post("/ativos/", response_model=AtivoResponse)
@@ -187,4 +202,22 @@ def obter_portfolio(db: sqlite3.Connection = Depends(get_db)):
         valor_total_atual=round(total_atual, 2),
         lucro_prejuizo_total=round(total_atual - total_investido, 2),
         posicoes=posicoes_finais
+    )
+  
+  # --- ROTA DA INTERFACE WEB (FRONTEND) ---
+@app.get("/", response_class=HTMLResponse)
+def dashboard_web(request: Request, db: sqlite3.Connection = Depends(get_db)):
+    """Renderiza a página principal (index.html) com os dados reais do portfólio."""
+    
+    # Reutilizamos a função obter_portfolio que já criamos! 
+    # Ela faz todo o cálculo pesado e nos devolve os dados prontos.
+    dados_portfolio = obter_portfolio(db)
+    
+    # Injeta os dados no HTML e devolve para o navegador
+    return templates.TemplateResponse(
+        "index.html", 
+        {
+            "request": request, 
+            "portfolio": dados_portfolio
+        }
     )

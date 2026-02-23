@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masterfy | Wealth Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { dark: '#0a0a0a', card: '#171717', border: '#262626' }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-dark text-gray-300 font-sans antialiased min-h-screen selection:bg-emerald-500 selection:text-white">
+
+    <nav class="border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="bg-emerald-500/10 p-2 rounded-lg text-emerald-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                </div>
+                <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400 tracking-tight">
+                    Masterfy
+                </h1>
+            </div>
+            <button class="text-sm font-medium text-gray-400 hover:text-white transition-colors">
+                <span class="bg-border px-3 py-1.5 rounded-full flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Sistema Online
+                </span>
+            </button>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <div class="mb-8">
+            <h2 class="text-3xl font-semibold text-white">Visão Geral</h2>
+            <p class="text-gray-500 mt-1">Acompanhe a evolução do seu patrimônio em tempo real.</p>
+        </div>
+
+         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div class="bg-card border border-border rounded-2xl p-6 shadow-lg shadow-black/20">
+                <div class="text-gray-400 text-sm font-medium mb-2">Patrimônio Atual</div>
+                <div class="text-4xl font-bold text-white mb-1">R$ {{ portfolio.valor_total_atual | moeda }}</div>
+            </div>
+
+            <div class="bg-card border border-border rounded-2xl p-6 shadow-lg shadow-black/20">
+                <div class="text-gray-400 text-sm font-medium mb-2">Total Investido</div>
+                <div class="text-3xl font-semibold text-gray-200 mb-1">R$ {{ portfolio.valor_total_investido | moeda }}</div>
+            </div>
+
+            <div class="bg-card border border-border rounded-2xl p-6 shadow-lg shadow-black/20">
+                <div class="text-gray-400 text-sm font-medium mb-2">Lucro / Prejuízo Total</div>
+                
+                {% if portfolio.lucro_prejuizo_total >= 0 %}
+                    <div class="text-3xl font-semibold text-emerald-400 mb-1">+ R$ {{ portfolio.lucro_prejuizo_total | moeda }}</div>
+                {% else %}
+                    <div class="text-3xl font-semibold text-red-400 mb-1">- R$ {{ (portfolio.lucro_prejuizo_total * -1) | moeda }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="mb-6 flex justify-between items-end">
+            <h3 class="text-xl font-semibold text-white">Minha Carteira</h3>
+            <button class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-emerald-500/20">
+                + Nova Transação
+            </button>
+        </div>
+
+        <div class="bg-card border border-border rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-dark/50 text-gray-400 text-xs uppercase tracking-wider border-b border-border">
+                            <th class="px-6 py-4 font-medium">Ativo</th>
+                            <th class="px-6 py-4 font-medium">Tipo</th>
+                            <th class="px-6 py-4 font-medium text-right">Qtd</th>
+                            <th class="px-6 py-4 font-medium text-right">Preço Médio</th>
+                            <th class="px-6 py-4 font-medium text-right">Preço Atual</th>
+                            <th class="px-6 py-4 font-medium text-right">Resultado</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        {% for pos in portfolio.posicoes %}
+                        <tr class="hover:bg-white/[0.02] transition-colors group">
+                            <td class="px-6 py-4">
+                                <div class="font-semibold text-white group-hover:text-emerald-400 transition-colors">{{ pos.ticker }}</div>
+                                <div class="text-xs text-gray-500">{{ pos.nome }}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs px-2.5 py-1 rounded-full font-medium">
+                                    {{ pos.tipo }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-right text-gray-300">
+                                {% if pos.tipo in ['ACAO', 'FII', 'ETF'] %}
+                                    {{ pos.quantidade_total }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-right text-gray-400">
+                                R$ {{ pos.valor_investido | moeda }} <span class="text-xs">(Investido)</span>
+                            </td>
+                            <td class="px-6 py-4 text-right text-white font-medium">
+                                R$ {{ pos.valor_atual | moeda }}
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                {% if pos.lucro_prejuizo >= 0 %}
+                                    <div class="text-emerald-400 font-medium">+ R$ {{ pos.lucro_prejuizo | moeda }}</div>
+                                {% else %}
+                                    <div class="text-red-400 font-medium">- R$ {{ (pos.lucro_prejuizo * -1) | moeda }}</div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        
+                        {% if not portfolio.posicoes %}
+                        <tr>
+                            <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                                Nenhuma transação registrada ainda. Comece a investir!
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
