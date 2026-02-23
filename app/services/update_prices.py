@@ -1,7 +1,7 @@
 import sqlite3
 import os
 from datetime import date
-from price_engine import buscar_preco_acao
+from app.services.price_engine import buscar_preco_acao
 
 # --- CONFIGURAÇÕES DO BANCO DE DADOS ---
 # Como estamos dentro da pasta 'services', precisamos subir dois níveis ('..', '..') para chegar na raiz

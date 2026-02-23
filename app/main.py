@@ -6,6 +6,8 @@ from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date
+from apscheduler.schedulers.background import BackgroundScheduler
+from app.services.update_prices import atualizar_precos_b3
 import sqlite3
 import os
 
@@ -66,6 +68,19 @@ class PortfolioResponse(BaseModel):
 
 # 2. Executa a criação do banco de dados antes da API subir
 iniciar_banco()
+
+# --- CONFIGURAÇÃO DA AUTOMAÇÃO (CRON) ---
+agendador = BackgroundScheduler()
+
+# Configura para rodar a função de segunda a sexta-feira, às 18:00 (após o fechamento da B3)
+agendador.add_job(
+    atualizar_precos_b3, 
+    trigger='cron', 
+    day_of_week='mon-fri', 
+    hour=18, 
+    minute=0
+)
+agendador.start()
 
 # --- INICIALIZANDO A API ---
 app = FastAPI(title="Masterfy API", description="API para rastreamento de investimentos", version="0.1")
