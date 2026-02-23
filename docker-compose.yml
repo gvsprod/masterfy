@@ -6,9 +6,12 @@ services:
     container_name: masterfy_app
     restart: unless-stopped
     ports:
-      # Mapeia a porta 8088 do seu Umbrel para a porta 8000 do Masterfy
-      # Usamos 8088 por fora para evitar conflito com outros apps do Umbrel
       - "8088:8000"
     volumes:
-      # ISSO SALVA SUA VIDA: Mantém o banco de dados a salvo fora do container!
-      - ./data:/masterfy/data
+      # Agora usamos um volume gerenciado pelo Docker, seguro e persistente
+      - masterfy_db:/masterfy/data
+
+# Precisamos declarar o volume aqui embaixo também
+volumes:
+  masterfy_db:
+    name: masterfy_db
