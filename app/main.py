@@ -5,6 +5,10 @@ from datetime import date
 import sqlite3
 import os
 
+# Importando os nossos motores (A mágica acontece aqui)
+from app.services.price_engine import buscar_preco_acao
+from app.services.renda_fixa_engine import calcular_evolucao_cdb_pos
+
 # --- CONFIGURAÇÕES DO BANCO DE DADOS ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, '..', 'data', 'masterfy.db')
@@ -27,11 +31,10 @@ class AtivoCreate(BaseModel):
 class AtivoResponse(AtivoCreate):
     id: int
 
-# Novos modelos para as Transações
 class TransacaoCreate(BaseModel):
     ativo_id: int
     data: date
-    tipo_transacao: str # 'COMPRA' ou 'VENDA'
+    tipo_transacao: str 
     quantidade: float
     preco_unitario: float
     taxas: float = 0.0
@@ -39,10 +42,27 @@ class TransacaoCreate(BaseModel):
 class TransacaoResponse(TransacaoCreate):
     id: int
 
+# Novos Modelos para o Portfólio
+class PosicaoAtivo(BaseModel):
+    ativo_id: int
+    ticker: str
+    nome: str
+    tipo: str
+    quantidade_total: float
+    valor_investido: float
+    valor_atual: float
+    lucro_prejuizo: float
+
+class PortfolioResponse(BaseModel):
+    valor_total_investido: float
+    valor_total_atual: float
+    lucro_prejuizo_total: float
+    posicoes: List[PosicaoAtivo]
+
 # --- INICIALIZANDO A API ---
 app = FastAPI(title="Masterfy API", description="API para rastreamento de investimentos", version="0.1")
 
-# --- ROTAS DE ATIVOS ---
+# --- ROTAS DE ATIVOS E TRANSAÇÕES ---
 @app.post("/ativos/", response_model=AtivoResponse)
 def criar_ativo(ativo: AtivoCreate, db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
@@ -62,37 +82,109 @@ def listar_ativos(db: sqlite3.Connection = Depends(get_db)):
     cursor.execute("SELECT * FROM ativos")
     return [dict(linha) for linha in cursor.fetchall()]
 
-# --- ROTAS DE TRANSAÇÕES ---
 @app.post("/transacoes/", response_model=TransacaoResponse)
 def registrar_transacao(transacao: TransacaoCreate, db: sqlite3.Connection = Depends(get_db)):
-    """Registra uma nova compra ou venda de um ativo."""
     cursor = db.cursor()
-    
-    # 1. Verifica se o ativo_id realmente existe no banco de dados
     cursor.execute("SELECT id FROM ativos WHERE id = ?", (transacao.ativo_id,))
     if not cursor.fetchone():
-        raise HTTPException(status_code=404, detail="Ativo não encontrado. Cadastre o ativo primeiro.")
-
-    # 2. Valida se o tipo de transação é válido
+        raise HTTPException(status_code=404, detail="Ativo não encontrado.")
     tipo = transacao.tipo_transacao.upper()
     if tipo not in ["COMPRA", "VENDA"]:
         raise HTTPException(status_code=400, detail="O tipo de transação deve ser 'COMPRA' ou 'VENDA'.")
-
-    # 3. Insere a transação no banco
     cursor.execute(
-        """
-        INSERT INTO transacoes (ativo_id, data, tipo_transacao, quantidade, preco_unitario, taxas)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """,
+        "INSERT INTO transacoes (ativo_id, data, tipo_transacao, quantidade, preco_unitario, taxas) VALUES (?, ?, ?, ?, ?, ?)",
         (transacao.ativo_id, transacao.data, tipo, transacao.quantidade, transacao.preco_unitario, transacao.taxas)
     )
     db.commit()
-    
     return {**transacao.model_dump(), "id": cursor.lastrowid}
 
 @app.get("/transacoes/", response_model=List[TransacaoResponse])
 def listar_transacoes(db: sqlite3.Connection = Depends(get_db)):
-    """Lista todas as transações registradas."""
     cursor = db.cursor()
     cursor.execute("SELECT * FROM transacoes ORDER BY data DESC")
     return [dict(linha) for linha in cursor.fetchall()]
+
+# --- ROTA DE PORTFÓLIO (A MÁGICA) ---
+@app.get("/portfolio/", response_model=PortfolioResponse)
+def obter_portfolio(db: sqlite3.Connection = Depends(get_db)):
+    cursor = db.cursor()
+    
+    # 1. Busca todas as transações cruzando com os dados do ativo
+    cursor.execute("""
+        SELECT a.id, a.ticker, a.nome, a.tipo, a.indexador,
+               t.data, t.tipo_transacao, t.quantidade, t.preco_unitario
+        FROM transacoes t
+        JOIN ativos a ON t.ativo_id = a.id
+    """)
+    transacoes = cursor.fetchall()
+    
+    posicoes = {}
+    
+    # 2. Agrupa as transações por ativo
+    for t in transacoes:
+        ativo_id = t['id']
+        if ativo_id not in posicoes:
+            posicoes[ativo_id] = {
+                "ativo_id": ativo_id, "ticker": t['ticker'], "nome": t['nome'], "tipo": t['tipo'],
+                "quantidade_total": 0.0, "valor_investido": 0.0, "valor_atual": 0.0, "compras_rf": []
+            }
+        
+        # Calcula o saldo e o valor investido
+        if t['tipo_transacao'] == 'COMPRA':
+            posicoes[ativo_id]["quantidade_total"] += t['quantidade']
+            posicoes[ativo_id]["valor_investido"] += (t['quantidade'] * t['preco_unitario'])
+            
+            # Se for Renda Fixa, guardamos a compra isolada para calcular o juros desde aquela data específica
+            if t['tipo'] == 'RENDA_FIXA_POS':
+                posicoes[ativo_id]["compras_rf"].append(t)
+                
+        elif t['tipo_transacao'] == 'VENDA':
+            posicoes[ativo_id]["quantidade_total"] -= t['quantidade']
+            posicoes[ativo_id]["valor_investido"] -= (t['quantidade'] * t['preco_unitario'])
+
+    # 3. Calcula o valor de mercado HOJE para cada ativo agrupado
+    posicoes_finais = []
+    total_investido = 0.0
+    total_atual = 0.0
+    
+    for pos in posicoes.values():
+        if pos["quantidade_total"] <= 0:
+            continue # Ignora ativos que você já vendeu tudo
+            
+        if pos["tipo"] in ['ACAO', 'FII', 'ETF']:
+            # Chama o motor da B3
+            preco_hoje = buscar_preco_acao(pos['ticker'])
+            if preco_hoje:
+                pos["valor_atual"] = pos["quantidade_total"] * preco_hoje
+            else:
+                pos["valor_atual"] = pos["valor_investido"] # Fallback se falhar a internet
+                
+        elif pos["tipo"] == 'RENDA_FIXA_POS':
+            # Chama o motor do CDI para CADA aporte feito naquele CDB
+            valor_atual_rf = 0.0
+            for compra in pos["compras_rf"]:
+                valor_inicial = compra['quantidade'] * compra['preco_unitario']
+                # Nota: Estamos assumindo 100% (1.0) do CDI como padrão. 
+                # Futuramente podemos adicionar uma coluna 'taxa' no banco de dados.
+                valor_atualizado = calcular_evolucao_cdb_pos(valor_inicial, 1.0, str(compra['data']))
+                valor_atual_rf += valor_atualizado
+            pos["valor_atual"] = valor_atual_rf
+            
+        else:
+            pos["valor_atual"] = pos["valor_investido"]
+            
+        pos["lucro_prejuizo"] = round(pos["valor_atual"] - pos["valor_investido"], 2)
+        pos["valor_atual"] = round(pos["valor_atual"], 2)
+        pos["valor_investido"] = round(pos["valor_investido"], 2)
+        
+        # Soma para o totalzão da carteira
+        total_investido += pos["valor_investido"]
+        total_atual += pos["valor_atual"]
+        posicoes_finais.append(PosicaoAtivo(**pos))
+        
+    return PortfolioResponse(
+        valor_total_investido=round(total_investido, 2),
+        valor_total_atual=round(total_atual, 2),
+        lucro_prejuizo_total=round(total_atual - total_investido, 2),
+        posicoes=posicoes_finais
+    )
