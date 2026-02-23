@@ -10,6 +10,7 @@ import sqlite3
 import os
 
 # Importando os nossos motores (A mágica acontece aqui)
+from app.database import iniciar_banco
 from app.services.price_engine import buscar_preco_acao
 from app.services.renda_fixa_engine import calcular_evolucao_cdb_pos
 
@@ -62,6 +63,9 @@ class PortfolioResponse(BaseModel):
     valor_total_atual: float
     lucro_prejuizo_total: float
     posicoes: List[PosicaoAtivo]
+
+# 2. Executa a criação do banco de dados antes da API subir
+iniciar_banco()
 
 # --- INICIALIZANDO A API ---
 app = FastAPI(title="Masterfy API", description="API para rastreamento de investimentos", version="0.1")
