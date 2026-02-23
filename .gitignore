@@ -1,0 +1,13 @@
+# Ignorar o banco de dados e arquivos de dados
+data/
+*.db
+*.sqlite3
+
+# Ignorar pastas virtuais do Python
+venv/
+env/
+_pycache_/
+*.pyc
+
+# Ignorar arquivos de ambiente (onde ficarão senhas/tokens no futuro)
+.env
