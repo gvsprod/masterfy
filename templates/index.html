@@ -70,9 +70,16 @@
 
         <div class="mb-6 flex justify-between items-end">
             <h3 class="text-xl font-semibold text-white">Minha Carteira</h3>
-            <button onclick="document.getElementById('modal-transacao').classList.remove('hidden')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-emerald-500/20">
-                + Nova Transação
-            </button>
+            
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('modal-ativo').classList.remove('hidden')" class="bg-dark border border-border hover:bg-white/5 text-gray-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                    + Novo Ativo
+                </button>
+                
+                <button onclick="document.getElementById('modal-transacao').classList.remove('hidden')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-emerald-500/20">
+                    + Nova Transação
+                </button>
+            </div>
         </div>
 
         <div class="bg-card border border-border rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
@@ -135,6 +142,57 @@
             </div>
         </div>
     </main>
+	<div id="modal-ativo" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-card border border-border rounded-2xl shadow-2xl shadow-black max-w-md w-full p-6 relative">
+            
+            <button onclick="document.getElementById('modal-ativo').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
+            <h3 class="text-xl font-semibold text-white mb-6">Cadastrar Novo Ativo</h3>
+
+            <form action="/web/ativos/" method="POST" class="space-y-4">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Ticker (Sigla)</label>
+                        <input type="text" name="ticker" required placeholder="Ex: VALE3" class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors uppercase">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Tipo</label>
+                        <select name="tipo" required class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors">
+                            <option value="ACAO">Ação</option>
+                            <option value="FII">Fundo Imobiliário (FII)</option>
+                            <option value="ETF">ETF</option>
+                            <option value="RENDA_FIXA_POS">Renda Fixa (Pós-fixada)</option>
+                            <option value="TESOURO">Tesouro Direto</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Nome Descritivo</label>
+                    <input type="text" name="nome" required placeholder="Ex: Vale ON / CDB Banco XP" class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Indexador (Para Renda Fixa)</label>
+                    <select name="indexador" class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors">
+                        <option value="" selected>Nenhum (Para Ações/FIIs)</option>
+                        <option value="CDI">CDI</option>
+                        <option value="IPCA">IPCA</option>
+                        <option value="SELIC">SELIC</option>
+                    </select>
+                </div>
+
+                <div class="pt-4">
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 rounded-lg transition-colors shadow-lg shadow-emerald-500/20">
+                        Salvar Ativo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 	 <div id="modal-transacao" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-card border border-border rounded-2xl shadow-2xl shadow-black max-w-md w-full p-6 relative">
             

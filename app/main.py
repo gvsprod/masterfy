@@ -245,3 +245,30 @@ def registrar_transacao_web(
     
     # O código 303 diz ao navegador: "Sucesso! Agora redirecione de volta para a página inicial (GET /)"
     return RedirectResponse(url="/", status_code=303)
+  
+@app.post("/web/ativos/")
+def registrar_ativo_web(
+    ticker: str = Form(...),
+    nome: str = Form(...),
+    tipo: str = Form(...),
+    indexador: str = Form(""), # Opcional no HTML, vem como string vazia
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Recebe os dados do formulário HTML, cadastra o ativo e recarrega a página."""
+    cursor = db.cursor()
+    
+    # Se o indexador vier vazio (ex: Ações não têm indexador), transformamos em None (Nulo)
+    idx = indexador if indexador else None
+    
+    try:
+        cursor.execute(
+            "INSERT INTO ativos (ticker, nome, tipo, indexador) VALUES (?, ?, ?, ?)",
+            (ticker.upper(), nome, tipo.upper(), idx)
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        # Se o ticker já existir, o banco de dados vai chiar. 
+        # Como é uma interface simples, por enquanto apenas ignoramos e recarregamos a página.
+        pass
+        
+    return RedirectResponse(url="/", status_code=303)
