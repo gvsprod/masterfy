@@ -1,5 +1,5 @@
-from fastapi import FastAPI, HTTPException, Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException, Depends, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Depends
@@ -209,15 +209,39 @@ def obter_portfolio(db: sqlite3.Connection = Depends(get_db)):
 def dashboard_web(request: Request, db: sqlite3.Connection = Depends(get_db)):
     """Renderiza a página principal (index.html) com os dados reais do portfólio."""
     
-    # Reutilizamos a função obter_portfolio que já criamos! 
-    # Ela faz todo o cálculo pesado e nos devolve os dados prontos.
+    # Busca os dados do portfólio (que já tínhamos)
     dados_portfolio = obter_portfolio(db)
     
-    # Injeta os dados no HTML e devolve para o navegador
+    # NOVO: Busca todos os ativos para popular o formulário de "Nova Transação"
+    cursor = db.cursor()
+    cursor.execute("SELECT id, ticker, nome FROM ativos ORDER BY ticker")
+    lista_ativos = [dict(linha) for linha in cursor.fetchall()]
+    
     return templates.TemplateResponse(
         "index.html", 
         {
             "request": request, 
-            "portfolio": dados_portfolio
+            "portfolio": dados_portfolio,
+            "ativos": lista_ativos  # Enviamos a lista para o HTML
         }
     )
+   
+@app.post("/web/transacoes/")
+def registrar_transacao_web(
+    ativo_id: int = Form(...),
+    data: str = Form(...),
+    tipo_transacao: str = Form(...),
+    quantidade: float = Form(...),
+    preco_unitario: float = Form(...),
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Recebe os dados do formulário HTML, salva a transação e recarrega a página."""
+    cursor = db.cursor()
+    cursor.execute(
+        "INSERT INTO transacoes (ativo_id, data, tipo_transacao, quantidade, preco_unitario, taxas) VALUES (?, ?, ?, ?, ?, ?)",
+        (ativo_id, data, tipo_transacao, quantidade, preco_unitario, 0.0)
+    )
+    db.commit()
+    
+    # O código 303 diz ao navegador: "Sucesso! Agora redirecione de volta para a página inicial (GET /)"
+    return RedirectResponse(url="/", status_code=303)
