@@ -291,3 +291,60 @@ def registrar_ativo_web(
         pass
         
     return RedirectResponse(url="/", status_code=303)
+    
+    # --- ROTAS DE DETALHES E EDIÇÃO DE TRANSAÇÕES ---
+
+@app.get("/ativo/{ativo_id}", response_class=HTMLResponse)
+def detalhes_ativo(request: Request, ativo_id: int, db: sqlite3.Connection = Depends(get_db)):
+    """Renderiza a página com o histórico de um ativo específico."""
+    cursor = db.cursor()
+    
+    # Busca os dados do ativo
+    cursor.execute("SELECT * FROM ativos WHERE id = ?", (ativo_id,))
+    ativo = cursor.fetchone()
+    if not ativo:
+        raise HTTPException(status_code=404, detail="Ativo não encontrado")
+    
+    # Busca todas as transações desse ativo
+    cursor.execute("SELECT * FROM transacoes WHERE ativo_id = ? ORDER BY data DESC", (ativo_id,))
+    transacoes = [dict(linha) for linha in cursor.fetchall()]
+    
+    return templates.TemplateResponse(
+        "ativo.html", 
+        {"request": request, "ativo": dict(ativo), "transacoes": transacoes}
+    )
+
+@app.post("/web/transacoes/{transacao_id}/deletar")
+def deletar_transacao_web(
+    transacao_id: int, 
+    ativo_id: int = Form(...), 
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Deleta uma transação e recarrega a página do ativo."""
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM transacoes WHERE id = ?", (transacao_id,))
+    db.commit()
+    return RedirectResponse(url=f"/ativo/{ativo_id}", status_code=303)
+
+@app.post("/web/transacoes/{transacao_id}/editar")
+def editar_transacao_web(
+    transacao_id: int,
+    ativo_id: int = Form(...),
+    data: str = Form(...),
+    tipo_transacao: str = Form(...),
+    quantidade: float = Form(...),
+    preco_unitario: float = Form(...),
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Atualiza os dados de uma transação e recarrega a página."""
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        UPDATE transacoes 
+        SET data = ?, tipo_transacao = ?, quantidade = ?, preco_unitario = ?
+        WHERE id = ?
+        """,
+        (data, tipo_transacao, quantidade, preco_unitario, transacao_id)
+    )
+    db.commit()
+    return RedirectResponse(url=f"/ativo/{ativo_id}", status_code=303)

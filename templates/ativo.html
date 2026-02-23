@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ ativo.ticker }} | Masterfy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { dark: '#0a0a0a', card: '#171717', border: '#262626' } } } }
+    </script>
+</head>
+<body class="bg-dark text-gray-300 font-sans antialiased min-h-screen">
+
+    <nav class="border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
+            <a href="/" class="text-gray-400 hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            </a>
+            <h1 class="text-xl font-bold text-white tracking-tight">
+                Histórico de <span class="text-emerald-400">{{ ativo.ticker }}</span>
+            </h1>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <div class="bg-card border border-border rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-dark/50 text-gray-400 text-xs uppercase tracking-wider border-b border-border">
+                            <th class="px-6 py-4 font-medium">Data</th>
+                            <th class="px-6 py-4 font-medium">Tipo</th>
+                            <th class="px-6 py-4 font-medium text-right">Qtd</th>
+                            <th class="px-6 py-4 font-medium text-right">Preço Unit.</th>
+                            <th class="px-6 py-4 font-medium text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        {% for t in transacoes %}
+                        <tr class="hover:bg-white/[0.02] transition-colors">
+                            <td class="px-6 py-4 text-white">{{ t.data }}</td>
+                            <td class="px-6 py-4">
+                                {% if t.tipo_transacao == 'COMPRA' %}
+                                    <span class="text-emerald-400 font-medium text-sm">COMPRA</span>
+                                {% else %}
+                                    <span class="text-red-400 font-medium text-sm">VENDA</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-right text-white">{{ t.quantidade }}</td>
+                            <td class="px-6 py-4 text-right text-gray-400">R$ {{ t.preco_unitario | moeda if t.preco_unitario else t.preco_unitario }}</td>
+                            <td class="px-6 py-4 flex justify-center gap-3">
+                                <button onclick="abrirModalEdicao({{ t.id }}, '{{ t.data }}', '{{ t.tipo_transacao }}', {{ t.quantidade }}, {{ t.preco_unitario }})" class="text-blue-400 hover:text-blue-300">
+                                    Editar
+                                </button>
+                                
+                                <form action="/web/transacoes/{{ t.id }}/deletar" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta transação?');">
+                                    <input type="hidden" name="ativo_id" value="{{ ativo.id }}">
+                                    <button type="submit" class="text-red-400 hover:text-red-300">Excluir</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <div id="modal-editar" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-card border border-border rounded-2xl shadow-2xl shadow-black max-w-md w-full p-6 relative">
+            <button onclick="document.getElementById('modal-editar').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
+            <h3 class="text-xl font-semibold text-white mb-6">Editar Transação</h3>
+
+            <form id="form-editar" method="POST" class="space-y-4">
+                <input type="hidden" name="ativo_id" value="{{ ativo.id }}">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Data</label>
+                        <input type="date" id="edit_data" name="data" required class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Tipo</label>
+                        <select id="edit_tipo" name="tipo_transacao" required class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500">
+                            <option value="COMPRA">Compra</option>
+                            <option value="VENDA">Venda</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Quantidade</label>
+                        <input type="number" step="0.0001" id="edit_qtd" name="quantidade" required class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Preço Unitário</label>
+                        <input type="number" step="0.01" id="edit_preco" name="preco_unitario" required class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <div class="pt-4">
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 rounded-lg transition-colors">
+                        Salvar Alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function abrirModalEdicao(id, data, tipo, qtd, preco) {
+            // Ajusta o caminho do formulário para o ID correto da transação
+            document.getElementById('form-editar').action = `/web/transacoes/${id}/editar`;
+            
+            // Preenche os campos
+            document.getElementById('edit_data').value = data;
+            document.getElementById('edit_tipo').value = tipo;
+            document.getElementById('edit_qtd').value = qtd;
+            document.getElementById('edit_preco').value = preco;
+            
+            // Exibe o modal
+            document.getElementById('modal-editar').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

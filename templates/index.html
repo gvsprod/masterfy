@@ -99,9 +99,11 @@
                         {% for pos in portfolio.posicoes %}
                         <tr class="hover:bg-white/[0.02] transition-colors group">
                             <td class="px-6 py-4">
-                                <div class="font-semibold text-white group-hover:text-emerald-400 transition-colors">{{ pos.ticker }}</div>
-                                <div class="text-xs text-gray-500">{{ pos.nome }}</div>
-                            </td>
+								<a href="/ativo/{{ pos.ativo_id }}" class="block cursor-pointer">
+									<div class="font-semibold text-white group-hover:text-emerald-400 transition-colors underline-offset-4 hover:underline">{{ pos.ticker }}</div>
+									<div class="text-xs text-gray-500">{{ pos.nome }}</div>
+								</a>
+							</td>
                             <td class="px-6 py-4">
                                 <span class="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs px-2.5 py-1 rounded-full font-medium">
                                     {{ pos.tipo }}
