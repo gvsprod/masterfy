@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Depends
@@ -7,7 +7,6 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.services.update_prices import atualizar_precos_b3
 import sqlite3
 import os
 
@@ -15,6 +14,9 @@ import os
 from app.database import iniciar_banco
 from app.services.price_engine import buscar_preco_acao
 from app.services.renda_fixa_engine import calcular_evolucao_cdb_pos
+from app.services.backup_engine import realizar_backup_diario
+from app.services.update_prices import atualizar_precos_b3
+
 
 # --- CONFIGURAÇÕES DO BANCO DE DADOS ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -80,6 +82,9 @@ agendador.add_job(
     hour=18, 
     minute=0
 )
+# NOVO: Rotina de backup (Roda todos os dias às 02:00 da manhã)
+agendador.add_job(realizar_backup_diario, trigger='cron', hour=2, minute=0)
+
 agendador.start()
 
 # --- INICIALIZANDO A API ---
@@ -348,3 +353,19 @@ def editar_transacao_web(
     )
     db.commit()
     return RedirectResponse(url=f"/ativo/{ativo_id}", status_code=303)
+    
+    # --- ROTA DE EXPORTAÇÃO DE BACKUP ---
+@app.get("/backup/download")
+def baixar_backup_manual():
+    """Permite ao usuário baixar o banco de dados atual diretamente pelo navegador."""
+    data_hoje = date.today().strftime('%Y-%m-%d')
+    nome_arquivo = f"masterfy_exportacao_{data_hoje}.db"
+    
+    # Se o banco existir, envia como anexo para download
+    if os.path.exists(DB_PATH):
+        return FileResponse(
+            path=DB_PATH, 
+            media_type='application/octet-stream', 
+            filename=nome_arquivo
+        )
+    raise HTTPException(status_code=404, detail="Banco de dados não encontrado.")

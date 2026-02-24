@@ -21,7 +21,7 @@
 </head>
 <body class="bg-dark text-gray-300 font-sans antialiased min-h-screen selection:bg-emerald-500 selection:text-white">
 
-    <nav class="border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-10">
+     <nav class="border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
             <div class="flex items-center gap-2">
                 <div class="bg-emerald-500/10 p-2 rounded-lg text-emerald-400">
@@ -31,11 +31,19 @@
                     Masterfy
                 </h1>
             </div>
-            <button class="text-sm font-medium text-gray-400 hover:text-white transition-colors">
-                <span class="bg-border px-3 py-1.5 rounded-full flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Sistema Online
+            
+            <div class="flex items-center gap-4">
+                <a href="/backup/download" class="text-sm font-medium text-gray-400 hover:text-emerald-400 transition-colors flex items-center gap-2" title="Baixar Cópia de Segurança">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Backup
+                </a>
+                
+                <span class="text-sm font-medium text-gray-400">
+                    <span class="bg-border px-3 py-1.5 rounded-full flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Online
+                    </span>
                 </span>
-            </button>
+            </div>
         </div>
     </nav>
 
