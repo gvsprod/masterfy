@@ -51,15 +51,19 @@ class TransacaoResponse(TransacaoCreate):
     id: int
 
 # Novos Modelos para o Portfólio
-class PosicaoAtivo(BaseModel):
+claclass PosicaoAtivo(BaseModel):
     ativo_id: int
     ticker: str
     nome: str
     tipo: str
+    setor: str # NOVO
     quantidade_total: float
+    preco_medio: float # NOVO
     valor_investido: float
     valor_atual: float
     lucro_prejuizo: float
+    percentual_carteira: float # NOVO
+
 
 class PortfolioResponse(BaseModel):
     valor_total_investido: float
@@ -69,6 +73,20 @@ class PortfolioResponse(BaseModel):
 
 # 2. Executa a criação do banco de dados antes da API subir
 iniciar_banco()
+
+# --- PATCH DE ATUALIZAÇÃO DO BANCO ---
+def aplicar_patch_banco():
+    """Adiciona a coluna setor caso o banco seja de uma versão anterior."""
+    conexao = sqlite3.connect(DB_PATH)
+    cursor = conexao.cursor()
+    cursor.execute("PRAGMA table_info(ativos)")
+    colunas = [col[1] for col in cursor.fetchall()]
+    if 'setor' not in colunas:
+        cursor.execute("ALTER TABLE ativos ADD COLUMN setor TEXT DEFAULT 'Outros'")
+        conexao.commit()
+    conexao.close()
+
+aplicar_patch_banco()
 
 # --- CONFIGURAÇÃO DA AUTOMAÇÃO (CRON) ---
 agendador = BackgroundScheduler()
@@ -147,8 +165,9 @@ def listar_transacoes(db: sqlite3.Connection = Depends(get_db)):
 def obter_portfolio(db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
     
+    # 1. Busca transações agora puxando o SETOR também
     cursor.execute("""
-        SELECT a.id, a.ticker, a.nome, a.tipo, a.indexador,
+        SELECT a.id, a.ticker, a.nome, a.tipo, a.setor,
                t.data, t.tipo_transacao, t.quantidade, t.preco_unitario
         FROM transacoes t
         JOIN ativos a ON t.ativo_id = a.id
@@ -156,12 +175,12 @@ def obter_portfolio(db: sqlite3.Connection = Depends(get_db)):
     transacoes = cursor.fetchall()
     
     posicoes = {}
-    
     for t in transacoes:
         ativo_id = t['id']
         if ativo_id not in posicoes:
             posicoes[ativo_id] = {
-                "ativo_id": ativo_id, "ticker": t['ticker'], "nome": t['nome'], "tipo": t['tipo'],
+                "ativo_id": ativo_id, "ticker": t['ticker'], "nome": t['nome'], 
+                "tipo": t['tipo'], "setor": t['setor'],
                 "quantidade_total": 0.0, "valor_investido": 0.0, "valor_atual": 0.0
             }
         
@@ -172,27 +191,40 @@ def obter_portfolio(db: sqlite3.Connection = Depends(get_db)):
             posicoes[ativo_id]["quantidade_total"] -= t['quantidade']
             posicoes[ativo_id]["valor_investido"] -= (t['quantidade'] * t['preco_unitario'])
 
-    posicoes_finais = []
+    posicoes_intermediarias = []
     total_investido = 0.0
     total_atual = 0.0
     
+    # 2. Calcula Preço Médio e busca cotação atual
     for pos in posicoes.values():
         if pos["quantidade_total"] <= 0:
             continue
             
-        # Agora TODOS os ativos passam pelo motor de preços da B3
         preco_hoje = buscar_preco_acao(pos['ticker'])
         if preco_hoje:
             pos["valor_atual"] = pos["quantidade_total"] * preco_hoje
         else:
             pos["valor_atual"] = pos["valor_investido"]
             
-        pos["lucro_prejuizo"] = round(pos["valor_atual"] - pos["valor_investido"], 2)
-        pos["valor_atual"] = round(pos["valor_atual"], 2)
-        pos["valor_investido"] = round(pos["valor_investido"], 2)
+        # O famoso Preço Médio (PM)
+        pos["preco_medio"] = pos["valor_investido"] / pos["quantidade_total"]
+        pos["lucro_prejuizo"] = pos["valor_atual"] - pos["valor_investido"]
         
         total_investido += pos["valor_investido"]
         total_atual += pos["valor_atual"]
+        
+        posicoes_intermediarias.append(pos)
+        
+    # 3. Terceiro loop: Agora que temos o totalzão, calculamos a % de cada um
+    posicoes_finais = []
+    for pos in posicoes_intermediarias:
+        percentual = (pos["valor_atual"] / total_atual * 100) if total_atual > 0 else 0.0
+        pos["percentual_carteira"] = round(percentual, 2)
+        
+        pos["preco_medio"] = round(pos["preco_medio"], 2)
+        pos["valor_atual"] = round(pos["valor_atual"], 2)
+        pos["valor_investido"] = round(pos["valor_investido"], 2)
+        pos["lucro_prejuizo"] = round(pos["lucro_prejuizo"], 2)
         posicoes_finais.append(PosicaoAtivo(**pos))
         
     return PortfolioResponse(
@@ -249,26 +281,19 @@ def registrar_ativo_web(
     ticker: str = Form(...),
     nome: str = Form(...),
     tipo: str = Form(...),
-    indexador: str = Form(""), # Opcional no HTML, vem como string vazia
+    setor: str = Form("Outros"), # NOVO CAMPO
     db: sqlite3.Connection = Depends(get_db)
 ):
     """Recebe os dados do formulário HTML, cadastra o ativo e recarrega a página."""
     cursor = db.cursor()
-    
-    # Se o indexador vier vazio (ex: Ações não têm indexador), transformamos em None (Nulo)
-    idx = indexador if indexador else None
-    
     try:
         cursor.execute(
-            "INSERT INTO ativos (ticker, nome, tipo, indexador) VALUES (?, ?, ?, ?)",
-            (ticker.upper(), nome, tipo.upper(), idx)
+            "INSERT INTO ativos (ticker, nome, tipo, setor) VALUES (?, ?, ?, ?)",
+            (ticker.upper(), nome, tipo.upper(), setor)
         )
         db.commit()
     except sqlite3.IntegrityError:
-        # Se o ticker já existir, o banco de dados vai chiar. 
-        # Como é uma interface simples, por enquanto apenas ignoramos e recarregamos a página.
         pass
-        
     return RedirectResponse(url="/", status_code=303)
     
     # --- ROTAS DE DETALHES E EDIÇÃO DE TRANSAÇÕES ---

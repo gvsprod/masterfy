@@ -96,10 +96,10 @@
                     <thead>
                         <tr class="bg-dark/50 text-gray-400 text-xs uppercase tracking-wider border-b border-border">
                             <th class="px-6 py-4 font-medium">Ativo</th>
-                            <th class="px-6 py-4 font-medium">Tipo</th>
-                            <th class="px-6 py-4 font-medium text-right">Qtd</th>
+                            <th class="px-6 py-4 font-medium">Setor</th>
+                            <th class="px-6 py-4 font-medium text-right">% na Carteira</th>
                             <th class="px-6 py-4 font-medium text-right">Preço Médio</th>
-                            <th class="px-6 py-4 font-medium text-right">Preço Atual</th>
+                            <th class="px-6 py-4 font-medium text-right">Em Carteira</th>
                             <th class="px-6 py-4 font-medium text-right">Resultado</th>
                         </tr>
                     </thead>
@@ -107,25 +107,31 @@
                         {% for pos in portfolio.posicoes %}
                         <tr class="hover:bg-white/[0.02] transition-colors group">
                             <td class="px-6 py-4">
-								<a href="/ativo/{{ pos.ativo_id }}" class="block cursor-pointer">
-									<div class="font-semibold text-white group-hover:text-primary transition-colors underline-offset-4 hover:underline">{{ pos.ticker }}</div>
-									<div class="text-xs text-gray-500">{{ pos.nome }}</div>
-								</a>
-							</td>
+                                <a href="/ativo/{{ pos.ativo_id }}" class="block cursor-pointer">
+                                    <div class="font-semibold text-white group-hover:text-primary transition-colors underline-offset-4 hover:underline">{{ pos.ticker }}</div>
+                                    <div class="text-xs text-gray-500">{{ pos.nome }}</div>
+                                </a>
+                            </td>
+                            
                             <td class="px-6 py-4">
-                                <span class="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs px-2.5 py-1 rounded-full font-medium">
-                                    {{ pos.tipo }}
+                                <span class="bg-gray-500/10 text-gray-400 border border-gray-500/20 text-xs px-2.5 py-1 rounded-full font-medium">
+                                    {{ pos.setor }}
                                 </span>
                             </td>
+                            
                             <td class="px-6 py-4 text-right text-gray-300">
-                                {{ pos.quantidade_total }}
+                                {{ pos.percentual_carteira }}%
                             </td>
+                            
                             <td class="px-6 py-4 text-right text-gray-400">
-                                R$ {{ pos.valor_investido | moeda }} <span class="text-xs">(Investido)</span>
+                                R$ {{ pos.preco_medio | moeda }}
                             </td>
-                            <td class="px-6 py-4 text-right text-white font-medium">
-                                R$ {{ pos.valor_atual | moeda }}
+                            
+                            <td class="px-6 py-4 text-right">
+                                <div class="text-white font-medium">R$ {{ pos.valor_atual | moeda }}</div>
+                                <div class="text-xs text-gray-500">{{ pos.quantidade_total }} cotas</div>
                             </td>
+                            
                             <td class="px-6 py-4 text-right">
                                 {% if pos.lucro_prejuizo >= 0 %}
                                     <div class="text-emerald-400 font-medium">+ R$ {{ pos.lucro_prejuizo | moeda }}</div>
@@ -171,6 +177,26 @@
                             <option value="FII">Fundo Imobiliário (FII)</option>
                             <option value="ETF">ETF</option>
                             <option value="BDR">BDR</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Nome Descritivo</label>
+                        <input type="text" name="nome" required placeholder="Ex: Vale ON" class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Setor</label>
+                        <select name="setor" required class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
+                            <option value="Bancos">Bancos</option>
+                            <option value="Energia">Energia</option>
+                            <option value="Saneamento">Saneamento</option>
+                            <option value="Seguros">Seguros</option>
+                            <option value="Varejo">Varejo</option>
+                            <option value="Mineração">Mineração</option>
+                            <option value="Imobiliário">Imobiliário (FII)</option>
+                            <option value="Outros" selected>Outros</option>
                         </select>
                     </div>
                 </div>
