@@ -118,11 +118,7 @@
                                 </span>
                             </td>
                             <td class="px-6 py-4 text-right text-gray-300">
-                                {% if pos.tipo in ['ACAO', 'FII', 'ETF'] %}
-                                    {{ pos.quantidade_total }}
-                                {% else %}
-                                    -
-                                {% endif %}
+                                {{ pos.quantidade_total }}
                             </td>
                             <td class="px-6 py-4 text-right text-gray-400">
                                 R$ {{ pos.valor_investido | moeda }} <span class="text-xs">(Investido)</span>
@@ -163,7 +159,7 @@
 
             <form action="/web/ativos/" method="POST" class="space-y-4">
                 
-                <div class="grid grid-cols-2 gap-4">
+                  <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-400 mb-1">Ticker (Sigla)</label>
                         <input type="text" name="ticker" required placeholder="Ex: VALE3" class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors uppercase">
@@ -174,27 +170,17 @@
                             <option value="ACAO">Ação</option>
                             <option value="FII">Fundo Imobiliário (FII)</option>
                             <option value="ETF">ETF</option>
-                            <option value="RENDA_FIXA_POS">Renda Fixa (Pós-fixada)</option>
-                            <option value="TESOURO">Tesouro Direto</option>
+                            <option value="BDR">BDR</option>
                         </select>
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-400 mb-1">Nome Descritivo</label>
-                    <input type="text" name="nome" required placeholder="Ex: Vale ON / CDB Banco XP" class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
+                    <input type="text" name="nome" required placeholder="Ex: Vale ON" class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-1">Indexador (Para Renda Fixa)</label>
-                    <select name="indexador" class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
-                        <option value="" selected>Nenhum (Para Ações/FIIs)</option>
-                        <option value="CDI">CDI</option>
-                        <option value="IPCA">IPCA</option>
-                        <option value="SELIC">SELIC</option>
-                    </select>
-                </div>
-
+                
                 <div class="pt-4">
                     <button type="submit" class="w-full bg-primary hover:bg-primaryHover text-white font-medium py-2.5 rounded-lg transition-colors shadow-lg shadow-primary/20">
                         Salvar Ativo

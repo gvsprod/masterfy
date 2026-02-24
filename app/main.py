@@ -13,7 +13,6 @@ import os
 # Importando os nossos motores (A mágica acontece aqui)
 from app.database import iniciar_banco
 from app.services.price_engine import buscar_preco_acao
-from app.services.renda_fixa_engine import calcular_evolucao_cdb_pos
 from app.services.backup_engine import realizar_backup_diario
 from app.services.update_prices import atualizar_precos_b3
 
@@ -148,7 +147,6 @@ def listar_transacoes(db: sqlite3.Connection = Depends(get_db)):
 def obter_portfolio(db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
     
-    # 1. Busca todas as transações cruzando com os dados do ativo
     cursor.execute("""
         SELECT a.id, a.ticker, a.nome, a.tipo, a.indexador,
                t.data, t.tipo_transacao, t.quantidade, t.preco_unitario
@@ -159,56 +157,33 @@ def obter_portfolio(db: sqlite3.Connection = Depends(get_db)):
     
     posicoes = {}
     
-    # 2. Agrupa as transações por ativo
     for t in transacoes:
         ativo_id = t['id']
         if ativo_id not in posicoes:
             posicoes[ativo_id] = {
                 "ativo_id": ativo_id, "ticker": t['ticker'], "nome": t['nome'], "tipo": t['tipo'],
-                "quantidade_total": 0.0, "valor_investido": 0.0, "valor_atual": 0.0, "compras_rf": []
+                "quantidade_total": 0.0, "valor_investido": 0.0, "valor_atual": 0.0
             }
         
-        # Calcula o saldo e o valor investido
         if t['tipo_transacao'] == 'COMPRA':
             posicoes[ativo_id]["quantidade_total"] += t['quantidade']
             posicoes[ativo_id]["valor_investido"] += (t['quantidade'] * t['preco_unitario'])
-            
-            # Se for Renda Fixa, guardamos a compra isolada para calcular o juros desde aquela data específica
-            if t['tipo'] == 'RENDA_FIXA_POS':
-                posicoes[ativo_id]["compras_rf"].append(t)
-                
         elif t['tipo_transacao'] == 'VENDA':
             posicoes[ativo_id]["quantidade_total"] -= t['quantidade']
             posicoes[ativo_id]["valor_investido"] -= (t['quantidade'] * t['preco_unitario'])
 
-    # 3. Calcula o valor de mercado HOJE para cada ativo agrupado
     posicoes_finais = []
     total_investido = 0.0
     total_atual = 0.0
     
     for pos in posicoes.values():
         if pos["quantidade_total"] <= 0:
-            continue # Ignora ativos que você já vendeu tudo
+            continue
             
-        if pos["tipo"] in ['ACAO', 'FII', 'ETF']:
-            # Chama o motor da B3
-            preco_hoje = buscar_preco_acao(pos['ticker'])
-            if preco_hoje:
-                pos["valor_atual"] = pos["quantidade_total"] * preco_hoje
-            else:
-                pos["valor_atual"] = pos["valor_investido"] # Fallback se falhar a internet
-                
-        elif pos["tipo"] == 'RENDA_FIXA_POS':
-            # Chama o motor do CDI para CADA aporte feito naquele CDB
-            valor_atual_rf = 0.0
-            for compra in pos["compras_rf"]:
-                valor_inicial = compra['quantidade'] * compra['preco_unitario']
-                # Nota: Estamos assumindo 100% (1.0) do CDI como padrão. 
-                # Futuramente podemos adicionar uma coluna 'taxa' no banco de dados.
-                valor_atualizado = calcular_evolucao_cdb_pos(valor_inicial, 1.0, str(compra['data']))
-                valor_atual_rf += valor_atualizado
-            pos["valor_atual"] = valor_atual_rf
-            
+        # Agora TODOS os ativos passam pelo motor de preços da B3
+        preco_hoje = buscar_preco_acao(pos['ticker'])
+        if preco_hoje:
+            pos["valor_atual"] = pos["quantidade_total"] * preco_hoje
         else:
             pos["valor_atual"] = pos["valor_investido"]
             
@@ -216,7 +191,6 @@ def obter_portfolio(db: sqlite3.Connection = Depends(get_db)):
         pos["valor_atual"] = round(pos["valor_atual"], 2)
         pos["valor_investido"] = round(pos["valor_investido"], 2)
         
-        # Soma para o totalzão da carteira
         total_investido += pos["valor_investido"]
         total_atual += pos["valor_atual"]
         posicoes_finais.append(PosicaoAtivo(**pos))
