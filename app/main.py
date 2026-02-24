@@ -51,7 +51,7 @@ class TransacaoResponse(TransacaoCreate):
     id: int
 
 # Novos Modelos para o Portfólio
-claclass PosicaoAtivo(BaseModel):
+class PosicaoAtivo(BaseModel):
     ativo_id: int
     ticker: str
     nome: str
