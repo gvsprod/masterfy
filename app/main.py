@@ -368,3 +368,18 @@ def baixar_backup_manual():
             filename=nome_arquivo
         )
     raise HTTPException(status_code=404, detail="Banco de dados não encontrado.")
+    
+@app.post("/web/ativos/{ativo_id}/editar")
+def editar_ativo_web(
+    ativo_id: int,
+    setor: str = Form(...),
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Atualiza o setor de um ativo e recarrega a página."""
+    cursor = db.cursor()
+    cursor.execute(
+        "UPDATE ativos SET setor = ? WHERE id = ?",
+        (setor, ativo_id)
+    )
+    db.commit()
+    return RedirectResponse(url=f"/ativo/{ativo_id}", status_code=303)
