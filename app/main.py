@@ -1,69 +1,88 @@
+import os
+import sqlite3
+from datetime import date
+from typing import Optional, List
+
 from fastapi import FastAPI, HTTPException, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException, Depends
-from pydantic import BaseModel
-from typing import Optional, List
-from datetime import date
 from apscheduler.schedulers.background import BackgroundScheduler
-import sqlite3
-import os
 
-# Importando os nossos motores (A mágica acontece aqui)
+# Importando os nossos motores
 from app.database import iniciar_banco
-from app.services.price_engine import buscar_preco_acao
 from app.services.backup_engine import realizar_backup_diario
 from app.services.update_prices import atualizar_precos_b3
 
-
 # --- CONFIGURAÇÕES DO BANCO DE DADOS ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, '..', 'data', 'masterfy.db')
+DATA_DIR = os.path.join(BASE_DIR, '..', 'data')
+DB_PATH = os.path.join(DATA_DIR, 'masterfy.db')
+
+# Certifica-se de que a pasta data existe
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
 def get_db():
     conexao = sqlite3.connect(DB_PATH)
     conexao.row_factory = sqlite3.Row 
+    # OTIMIZAÇÃO: Ativa o modo WAL (Write-Ahead Logging) para concorrência
+    conexao.execute("PRAGMA journal_mode=WAL;")
+    conexao.execute("PRAGMA synchronous=NORMAL;")
     try:
         yield conexao
     finally:
         conexao.close()
 
-# --- MODELOS DE DADOS (PYDANTIC) ---
-class AtivoCreate(BaseModel):
-    ticker: str
-    nome: str
-    tipo: str
-    indexador: Optional[str] = None
+# --- INICIA E ATUALIZA O BANCO ---
+iniciar_banco()
 
-class AtivoResponse(AtivoCreate):
-    id: int
+def aplicar_patch_banco():
+    """Adiciona novas colunas caso o banco seja de uma versão anterior."""
+    conexao = sqlite3.connect(DB_PATH)
+    cursor = conexao.cursor()
+    cursor.execute("PRAGMA table_info(ativos)")
+    colunas = [col[1] for col in cursor.fetchall()]
+    
+    if 'setor' not in colunas:
+        cursor.execute("ALTER TABLE ativos ADD COLUMN setor TEXT DEFAULT 'Outros'")
+    # Nova coluna para armazenar o preço de fechamento
+    if 'preco_atual' not in colunas:
+        cursor.execute("ALTER TABLE ativos ADD COLUMN preco_atual REAL DEFAULT 0.0")
+        
+    conexao.commit()
+    conexao.close()
 
-class TransacaoCreate(BaseModel):
-    ativo_id: int
-    data: date
-    tipo_transacao: str 
-    quantidade: float
-    preco_unitario: float
-    taxas: float = 0.0
+aplicar_patch_banco()
 
-class TransacaoResponse(TransacaoCreate):
-    id: int
+# --- AUTOMAÇÃO (CRON) ---
+agendador = BackgroundScheduler()
+agendador.add_job(atualizar_precos_b3, trigger='cron', day_of_week='mon-fri', hour=18, minute=0)
+agendador.add_job(realizar_backup_diario, trigger='cron', hour=2, minute=0)
+agendador.start()
 
-# Novos Modelos para o Portfólio
+# --- INICIALIZANDO A API ---
+app = FastAPI(title="masterfy API")
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, '..', 'templates'))
+
+# --- FILTROS DO JINJA2 ---
+def format_moeda(valor):
+    return f"{valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+templates.env.filters["moeda"] = format_moeda
+
+# --- MODELOS (PYDANTIC) ---
 class PosicaoAtivo(BaseModel):
     ativo_id: int
     ticker: str
     nome: str
     tipo: str
-    setor: str # NOVO
+    setor: str 
     quantidade_total: float
-    preco_medio: float # NOVO
+    preco_medio: float 
     valor_investido: float
     valor_atual: float
     lucro_prejuizo: float
-    percentual_carteira: float # NOVO
-
+    percentual_carteira: float 
 
 class PortfolioResponse(BaseModel):
     valor_total_investido: float
@@ -71,103 +90,14 @@ class PortfolioResponse(BaseModel):
     lucro_prejuizo_total: float
     posicoes: List[PosicaoAtivo]
 
-# 2. Executa a criação do banco de dados antes da API subir
-iniciar_banco()
-
-# --- PATCH DE ATUALIZAÇÃO DO BANCO ---
-def aplicar_patch_banco():
-    """Adiciona a coluna setor caso o banco seja de uma versão anterior."""
-    conexao = sqlite3.connect(DB_PATH)
-    cursor = conexao.cursor()
-    cursor.execute("PRAGMA table_info(ativos)")
-    colunas = [col[1] for col in cursor.fetchall()]
-    if 'setor' not in colunas:
-        cursor.execute("ALTER TABLE ativos ADD COLUMN setor TEXT DEFAULT 'Outros'")
-        conexao.commit()
-    conexao.close()
-
-aplicar_patch_banco()
-
-# --- CONFIGURAÇÃO DA AUTOMAÇÃO (CRON) ---
-agendador = BackgroundScheduler()
-
-# Configura para rodar a função de segunda a sexta-feira, às 18:00 (após o fechamento da B3)
-agendador.add_job(
-    atualizar_precos_b3, 
-    trigger='cron', 
-    day_of_week='mon-fri', 
-    hour=18, 
-    minute=0
-)
-# NOVO: Rotina de backup (Roda todos os dias às 02:00 da manhã)
-agendador.add_job(realizar_backup_diario, trigger='cron', hour=2, minute=0)
-
-agendador.start()
-
-# --- INICIALIZANDO A API ---
-app = FastAPI(title="Masterfy API", description="API para rastreamento de investimentos", version="0.1")
-
-# --- CONFIGURAÇÃO DO FRONTEND (JINJA2) ---
-# Aponta para a pasta templates que criamos
-templates = Jinja2Templates(directory=os.path.join(BASE_DIR, '..', 'templates'))
-
-# Cria um filtro para formatar dinheiro no padrão Brasil (1.000,00)
-def format_br(valor: float):
-    return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-# Ensina o Jinja2 a usar esse filtro com o nome 'moeda'
-templates.env.filters["moeda"] = format_br
-
-# --- ROTAS DE ATIVOS E TRANSAÇÕES ---
-@app.post("/ativos/", response_model=AtivoResponse)
-def criar_ativo(ativo: AtivoCreate, db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()
-    try:
-        cursor.execute(
-            "INSERT INTO ativos (ticker, nome, tipo, indexador) VALUES (?, ?, ?, ?)",
-            (ativo.ticker.upper(), ativo.nome, ativo.tipo.upper(), ativo.indexador)
-        )
-        db.commit()
-        return {**ativo.model_dump(), "id": cursor.lastrowid}
-    except sqlite3.IntegrityError:
-        raise HTTPException(status_code=400, detail="Este ticker já está cadastrado.")
-
-@app.get("/ativos/", response_model=List[AtivoResponse])
-def listar_ativos(db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()
-    cursor.execute("SELECT * FROM ativos")
-    return [dict(linha) for linha in cursor.fetchall()]
-
-@app.post("/transacoes/", response_model=TransacaoResponse)
-def registrar_transacao(transacao: TransacaoCreate, db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()
-    cursor.execute("SELECT id FROM ativos WHERE id = ?", (transacao.ativo_id,))
-    if not cursor.fetchone():
-        raise HTTPException(status_code=404, detail="Ativo não encontrado.")
-    tipo = transacao.tipo_transacao.upper()
-    if tipo not in ["COMPRA", "VENDA"]:
-        raise HTTPException(status_code=400, detail="O tipo de transação deve ser 'COMPRA' ou 'VENDA'.")
-    cursor.execute(
-        "INSERT INTO transacoes (ativo_id, data, tipo_transacao, quantidade, preco_unitario, taxas) VALUES (?, ?, ?, ?, ?, ?)",
-        (transacao.ativo_id, transacao.data, tipo, transacao.quantidade, transacao.preco_unitario, transacao.taxas)
-    )
-    db.commit()
-    return {**transacao.model_dump(), "id": cursor.lastrowid}
-
-@app.get("/transacoes/", response_model=List[TransacaoResponse])
-def listar_transacoes(db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()
-    cursor.execute("SELECT * FROM transacoes ORDER BY data DESC")
-    return [dict(linha) for linha in cursor.fetchall()]
-
-# --- ROTA DE PORTFÓLIO (A MÁGICA) ---
+# --- ROTAS DA API DE DADOS ---
 @app.get("/portfolio/", response_model=PortfolioResponse)
 def obter_portfolio(db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
     
-    # 1. Busca transações agora puxando o SETOR também
+    # Busca transações e o preco_atual salvo no banco
     cursor.execute("""
-        SELECT a.id, a.ticker, a.nome, a.tipo, a.setor,
+        SELECT a.id, a.ticker, a.nome, a.tipo, a.setor, a.preco_atual,
                t.data, t.tipo_transacao, t.quantidade, t.preco_unitario
         FROM transacoes t
         JOIN ativos a ON t.ativo_id = a.id
@@ -180,7 +110,7 @@ def obter_portfolio(db: sqlite3.Connection = Depends(get_db)):
         if ativo_id not in posicoes:
             posicoes[ativo_id] = {
                 "ativo_id": ativo_id, "ticker": t['ticker'], "nome": t['nome'], 
-                "tipo": t['tipo'], "setor": t['setor'],
+                "tipo": t['tipo'], "setor": t['setor'], "preco_atual_banco": t['preco_atual'],
                 "quantidade_total": 0.0, "valor_investido": 0.0, "valor_atual": 0.0
             }
         
@@ -195,19 +125,21 @@ def obter_portfolio(db: sqlite3.Connection = Depends(get_db)):
     total_investido = 0.0
     total_atual = 0.0
     
-    # 2. Calcula Preço Médio e busca cotação atual
     for pos in posicoes.values():
         if pos["quantidade_total"] <= 0:
             continue
             
-        preco_hoje = buscar_preco_acao(pos['ticker'])
-        if preco_hoje:
+        pos["preco_medio"] = pos["valor_investido"] / pos["quantidade_total"]
+        
+        # OTIMIZAÇÃO: Lê do banco ao invés de buscar na internet
+        preco_hoje = pos["preco_atual_banco"]
+        
+        # Se for 0.0 (novo ativo), usa o valor investido provisoriamente para a tela não quebrar
+        if preco_hoje and preco_hoje > 0:
             pos["valor_atual"] = pos["quantidade_total"] * preco_hoje
         else:
             pos["valor_atual"] = pos["valor_investido"]
             
-        # O famoso Preço Médio (PM)
-        pos["preco_medio"] = pos["valor_investido"] / pos["quantidade_total"]
         pos["lucro_prejuizo"] = pos["valor_atual"] - pos["valor_investido"]
         
         total_investido += pos["valor_investido"]
@@ -215,7 +147,6 @@ def obter_portfolio(db: sqlite3.Connection = Depends(get_db)):
         
         posicoes_intermediarias.append(pos)
         
-    # 3. Terceiro loop: Agora que temos o totalzão, calculamos a % de cada um
     posicoes_finais = []
     for pos in posicoes_intermediarias:
         percentual = (pos["valor_atual"] / total_atual * 100) if total_atual > 0 else 0.0
@@ -225,6 +156,10 @@ def obter_portfolio(db: sqlite3.Connection = Depends(get_db)):
         pos["valor_atual"] = round(pos["valor_atual"], 2)
         pos["valor_investido"] = round(pos["valor_investido"], 2)
         pos["lucro_prejuizo"] = round(pos["lucro_prejuizo"], 2)
+        
+        # Removemos a chave temporária para o Pydantic não reclamar
+        del pos["preco_atual_banco"]
+        
         posicoes_finais.append(PosicaoAtivo(**pos))
         
     return PortfolioResponse(
@@ -233,29 +168,40 @@ def obter_portfolio(db: sqlite3.Connection = Depends(get_db)):
         lucro_prejuizo_total=round(total_atual - total_investido, 2),
         posicoes=posicoes_finais
     )
-  
-  # --- ROTA DA INTERFACE WEB (FRONTEND) ---
+
+# --- ROTAS WEB (FRONTEND) ---
 @app.get("/", response_class=HTMLResponse)
 def dashboard_web(request: Request, db: sqlite3.Connection = Depends(get_db)):
-    """Renderiza a página principal (index.html) com os dados reais do portfólio."""
+    portfolio_data = obter_portfolio(db)
     
-    # Busca os dados do portfólio (que já tínhamos)
-    dados_portfolio = obter_portfolio(db)
-    
-    # NOVO: Busca todos os ativos para popular o formulário de "Nova Transação"
     cursor = db.cursor()
-    cursor.execute("SELECT id, ticker, nome FROM ativos ORDER BY ticker")
-    lista_ativos = [dict(linha) for linha in cursor.fetchall()]
+    cursor.execute("SELECT id, ticker FROM ativos ORDER BY ticker")
+    ativos = [dict(row) for row in cursor.fetchall()]
     
     return templates.TemplateResponse(
         "index.html", 
-        {
-            "request": request, 
-            "portfolio": dados_portfolio,
-            "ativos": lista_ativos  # Enviamos a lista para o HTML
-        }
+        {"request": request, "portfolio": portfolio_data, "ativos": ativos}
     )
-   
+
+@app.post("/web/ativos/")
+def registrar_ativo_web(
+    ticker: str = Form(...),
+    nome: str = Form(...),
+    tipo: str = Form(...),
+    setor: str = Form("Outros"),
+    db: sqlite3.Connection = Depends(get_db)
+):
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO ativos (ticker, nome, tipo, setor, preco_atual) VALUES (?, ?, ?, ?, 0.0)",
+            (ticker.upper(), nome, tipo.upper(), setor)
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        pass
+    return RedirectResponse(url="/", status_code=303)
+
 @app.post("/web/transacoes/")
 def registrar_transacao_web(
     ativo_id: int = Form(...),
@@ -265,51 +211,22 @@ def registrar_transacao_web(
     preco_unitario: float = Form(...),
     db: sqlite3.Connection = Depends(get_db)
 ):
-    """Recebe os dados do formulário HTML, salva a transação e recarrega a página."""
     cursor = db.cursor()
     cursor.execute(
-        "INSERT INTO transacoes (ativo_id, data, tipo_transacao, quantidade, preco_unitario, taxas) VALUES (?, ?, ?, ?, ?, ?)",
-        (ativo_id, data, tipo_transacao, quantidade, preco_unitario, 0.0)
+        "INSERT INTO transacoes (ativo_id, data, tipo_transacao, quantidade, preco_unitario) VALUES (?, ?, ?, ?, ?)",
+        (ativo_id, data, tipo_transacao.upper(), quantidade, preco_unitario)
     )
     db.commit()
-    
-    # O código 303 diz ao navegador: "Sucesso! Agora redirecione de volta para a página inicial (GET /)"
     return RedirectResponse(url="/", status_code=303)
-  
-@app.post("/web/ativos/")
-def registrar_ativo_web(
-    ticker: str = Form(...),
-    nome: str = Form(...),
-    tipo: str = Form(...),
-    setor: str = Form("Outros"), # NOVO CAMPO
-    db: sqlite3.Connection = Depends(get_db)
-):
-    """Recebe os dados do formulário HTML, cadastra o ativo e recarrega a página."""
-    cursor = db.cursor()
-    try:
-        cursor.execute(
-            "INSERT INTO ativos (ticker, nome, tipo, setor) VALUES (?, ?, ?, ?)",
-            (ticker.upper(), nome, tipo.upper(), setor)
-        )
-        db.commit()
-    except sqlite3.IntegrityError:
-        pass
-    return RedirectResponse(url="/", status_code=303)
-    
-    # --- ROTAS DE DETALHES E EDIÇÃO DE TRANSAÇÕES ---
 
 @app.get("/ativo/{ativo_id}", response_class=HTMLResponse)
 def detalhes_ativo(request: Request, ativo_id: int, db: sqlite3.Connection = Depends(get_db)):
-    """Renderiza a página com o histórico de um ativo específico."""
     cursor = db.cursor()
-    
-    # Busca os dados do ativo
     cursor.execute("SELECT * FROM ativos WHERE id = ?", (ativo_id,))
     ativo = cursor.fetchone()
     if not ativo:
         raise HTTPException(status_code=404, detail="Ativo não encontrado")
     
-    # Busca todas as transações desse ativo
     cursor.execute("SELECT * FROM transacoes WHERE ativo_id = ? ORDER BY data DESC", (ativo_id,))
     transacoes = [dict(linha) for linha in cursor.fetchall()]
     
@@ -324,7 +241,6 @@ def deletar_transacao_web(
     ativo_id: int = Form(...), 
     db: sqlite3.Connection = Depends(get_db)
 ):
-    """Deleta uma transação e recarrega a página do ativo."""
     cursor = db.cursor()
     cursor.execute("DELETE FROM transacoes WHERE id = ?", (transacao_id,))
     db.commit()
@@ -340,34 +256,13 @@ def editar_transacao_web(
     preco_unitario: float = Form(...),
     db: sqlite3.Connection = Depends(get_db)
 ):
-    """Atualiza os dados de uma transação e recarrega a página."""
     cursor = db.cursor()
     cursor.execute(
-        """
-        UPDATE transacoes 
-        SET data = ?, tipo_transacao = ?, quantidade = ?, preco_unitario = ?
-        WHERE id = ?
-        """,
+        "UPDATE transacoes SET data = ?, tipo_transacao = ?, quantidade = ?, preco_unitario = ? WHERE id = ?",
         (data, tipo_transacao, quantidade, preco_unitario, transacao_id)
     )
     db.commit()
     return RedirectResponse(url=f"/ativo/{ativo_id}", status_code=303)
-    
-    # --- ROTA DE EXPORTAÇÃO DE BACKUP ---
-@app.get("/backup/download")
-def baixar_backup_manual():
-    """Permite ao usuário baixar o banco de dados atual diretamente pelo navegador."""
-    data_hoje = date.today().strftime('%Y-%m-%d')
-    nome_arquivo = f"masterfy_exportacao_{data_hoje}.db"
-    
-    # Se o banco existir, envia como anexo para download
-    if os.path.exists(DB_PATH):
-        return FileResponse(
-            path=DB_PATH, 
-            media_type='application/octet-stream', 
-            filename=nome_arquivo
-        )
-    raise HTTPException(status_code=404, detail="Banco de dados não encontrado.")
     
 @app.post("/web/ativos/{ativo_id}/editar")
 def editar_ativo_web(
@@ -375,11 +270,15 @@ def editar_ativo_web(
     setor: str = Form(...),
     db: sqlite3.Connection = Depends(get_db)
 ):
-    """Atualiza o setor de um ativo e recarrega a página."""
     cursor = db.cursor()
-    cursor.execute(
-        "UPDATE ativos SET setor = ? WHERE id = ?",
-        (setor, ativo_id)
-    )
+    cursor.execute("UPDATE ativos SET setor = ? WHERE id = ?", (setor, ativo_id))
     db.commit()
     return RedirectResponse(url=f"/ativo/{ativo_id}", status_code=303)
+
+@app.get("/backup/download")
+def baixar_backup_manual():
+    data_hoje = date.today().strftime('%Y-%m-%d')
+    nome_arquivo = f"masterfy_exportacao_{data_hoje}.db"
+    if os.path.exists(DB_PATH):
+        return FileResponse(path=DB_PATH, media_type='application/octet-stream', filename=nome_arquivo)
+    raise HTTPException(status_code=404, detail="Banco de dados não encontrado.")
