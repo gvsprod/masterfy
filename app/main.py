@@ -303,7 +303,7 @@ def baixar_backup_manual():
         return FileResponse(path=DB_PATH, media_type='application/octet-stream', filename=nome_arquivo)
     raise HTTPException(status_code=404, detail="Banco de dados não encontrado.")
     
- @app.post("/web/proventos/")
+ @app.post("/web/proventos")
 def registrar_provento_web(
     ativo_id: int = Form(...),
     data: str = Form(...),
