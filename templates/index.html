@@ -3,22 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>masterfy | Wealth Tracker</title>
+    <title>masterfy | Wealth Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    /* O grande truque: forçamos a fonte monoespaçada em TODO o site de uma vez */
+                    fontFamily: { sans: ['"JetBrains Mono"', 'monospace'] },
                     colors: { 
                         dark: '#0a0a0a', 
-                        card: '#171717', 
+                        card: '#121212', /* Um fundo de card ligeiramente mais escuro para o estilo terminal */
                         border: '#262626',
                         primary: '#6D5A72',
-                        primaryHover: '#58485c' /* Um tom um pouco mais escuro para o hover */
+                        primaryHover: '#58485c' 
                     }
                 }
             }
@@ -30,7 +34,7 @@
      <nav class="border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
             <div class="flex items-center gap-2">
-                <div class="bg-primary/20 p-2 rounded-lg text-primary">
+                <div class="bg-primary/20 p-2 rounded-sm text-primary">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
                 </div>
                 <h1 class="text-2xl font-bold text-primary tracking-tight">
@@ -56,18 +60,18 @@
 
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             
-            <div class="bg-card border border-border rounded-2xl p-6 shadow-lg shadow-black/20">
+            <div class="bg-card border border-border rounded-sm p-6 shadow-lg shadow-black/20">
                 <p class="text-sm font-medium text-gray-400 mb-1">Total Investido</p>
                 <h3 class="text-2xl font-bold text-white">R$ {{ portfolio.valor_total_investido | moeda }}</h3>
             </div>
 
-            <div class="bg-card border border-border rounded-2xl p-6 shadow-lg shadow-black/20 relative overflow-hidden">
+            <div class="bg-card border border-border rounded-sm p-6 shadow-lg shadow-black/20 relative overflow-hidden">
                 <div class="absolute -right-6 -top-6 w-24 h-24 bg-primary/10 rounded-full blur-2xl"></div>
                 <p class="text-sm font-medium text-gray-400 mb-1">Patrimônio Atual</p>
                 <h3 class="text-2xl font-bold text-primary">R$ {{ portfolio.valor_total_atual | moeda }}</h3>
             </div>
 
-            <div class="bg-card border border-border rounded-2xl p-6 shadow-lg shadow-black/20">
+            <div class="bg-card border border-border rounded-sm p-6 shadow-lg shadow-black/20">
                 <p class="text-sm font-medium text-gray-400 mb-1">Lucro/Prejuízo (Cotação)</p>
                 <h3 class="text-2xl font-bold {% if portfolio.lucro_prejuizo_total >= 0 %}text-emerald-400{% else %}text-red-400{% endif %}">
                     {% if portfolio.lucro_prejuizo_total >= 0 %}+{% else %}-{% endif %} 
@@ -75,7 +79,7 @@
                 </h3>
             </div>
 
-            <div class="bg-card border border-border rounded-2xl p-6 shadow-lg shadow-black/20">
+            <div class="bg-card border border-border rounded-sm p-6 shadow-lg shadow-black/20">
                 <div class="flex items-center gap-2 mb-1">
                     <p class="text-sm font-medium text-gray-400">Proventos Acumulados</p>
                     <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -91,17 +95,17 @@
             <h3 class="text-xl font-semibold text-white">Minha Carteira</h3>
             
             <div class="flex gap-3">
-                <button onclick="document.getElementById('modal-ativo').classList.remove('hidden')" class="bg-dark border border-border hover:bg-white/5 text-gray-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <button onclick="document.getElementById('modal-ativo').classList.remove('hidden')" class="bg-dark border border-border hover:bg-white/5 text-gray-300 px-4 py-2 rounded-sm text-sm font-medium transition-colors">
                     + Novo Ativo
                 </button>
                 
-                <button onclick="document.getElementById('modal-transacao').classList.remove('hidden')" class="bg-primary hover:bg-primaryHover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20">
+                <button onclick="document.getElementById('modal-transacao').classList.remove('hidden')" class="bg-primary hover:bg-primaryHover text-white px-4 py-2 rounded-sm text-sm font-medium transition-colors shadow-lg shadow-primary/20">
                     + Nova Transação
                 </button>
             </div>
         </div>
 
-        <div class="bg-card border border-border rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
+        <div class="bg-card border border-border rounded-sm shadow-lg shadow-black/20 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
@@ -166,7 +170,7 @@
         </div>
     </main>
 	<div id="modal-ativo" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-card border border-border rounded-2xl shadow-2xl shadow-black max-w-md w-full p-6 relative">
+        <div class="bg-card border border-border rounded-sm shadow-2xl shadow-black max-w-md w-full p-6 relative">
             
             <button onclick="document.getElementById('modal-ativo').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-white">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -179,11 +183,11 @@
                   <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-400 mb-1">Ticker (Sigla)</label>
-                        <input type="text" name="ticker" required placeholder="Ex: VALE3" class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors uppercase">
+                        <input type="text" name="ticker" required placeholder="Ex: VALE3" class="w-full bg-dark border border-border rounded-sm px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors uppercase">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-400 mb-1">Tipo</label>
-                        <select name="tipo" required class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
+                        <select name="tipo" required class="w-full bg-dark border border-border rounded-sm px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
                             <option value="ACAO">Ação</option>
                             <option value="FII">Fundo Imobiliário (FII)</option>
                             <option value="ETF">ETF</option>
@@ -195,11 +199,11 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-400 mb-1">Nome Descritivo</label>
-                        <input type="text" name="nome" required placeholder="Ex: Vale ON" class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
+                        <input type="text" name="nome" required placeholder="Ex: Vale ON" class="w-full bg-dark border border-border rounded-sm px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-400 mb-1">Setor</label>
-                        <select name="setor" required class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
+                        <select name="setor" required class="w-full bg-dark border border-border rounded-sm px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
                             <option value="Bancos">Bancos</option>
                             <option value="Energia">Energia</option>
                             <option value="Saneamento">Saneamento</option>
@@ -214,12 +218,12 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-400 mb-1">Nome Descritivo</label>
-                    <input type="text" name="nome" required placeholder="Ex: Vale ON" class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
+                    <input type="text" name="nome" required placeholder="Ex: Vale ON" class="w-full bg-dark border border-border rounded-sm px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
                 </div>
 
                 
                 <div class="pt-4">
-                    <button type="submit" class="w-full bg-primary hover:bg-primaryHover text-white font-medium py-2.5 rounded-lg transition-colors shadow-lg shadow-primary/20">
+                    <button type="submit" class="w-full bg-primary hover:bg-primaryHover text-white font-medium py-2.5 rounded-sm transition-colors shadow-lg shadow-primary/20">
                         Salvar Ativo
                     </button>
                 </div>
@@ -227,7 +231,7 @@
         </div>
     </div>
 	 <div id="modal-transacao" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-card border border-border rounded-2xl shadow-2xl shadow-black max-w-md w-full p-6 relative">
+        <div class="bg-card border border-border rounded-sm shadow-2xl shadow-black max-w-md w-full p-6 relative">
             
             <button onclick="document.getElementById('modal-transacao').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-white">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -239,7 +243,7 @@
                 
                 <div>
                     <label class="block text-sm font-medium text-gray-400 mb-1">Ativo</label>
-                    <select name="ativo_id" required class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
+                    <select name="ativo_id" required class="w-full bg-dark border border-border rounded-sm px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
                         <option value="" disabled selected>Selecione um ativo...</option>
                         {% for ativo in ativos %}
                             <option value="{{ ativo.id }}">{{ ativo.ticker }} - {{ ativo.nome }}</option>
@@ -250,11 +254,11 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-400 mb-1">Data</label>
-                        <input type="date" name="data" required class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
+                        <input type="date" name="data" required class="w-full bg-dark border border-border rounded-sm px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-400 mb-1">Tipo</label>
-                        <select name="tipo_transacao" required class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
+                        <select name="tipo_transacao" required class="w-full bg-dark border border-border rounded-sm px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
                             <option value="COMPRA">Compra</option>
                             <option value="VENDA">Venda</option>
                         </select>
@@ -264,16 +268,16 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-400 mb-1">Quantidade</label>
-                        <input type="number" step="0.0001" name="quantidade" required placeholder="Ex: 100" class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
+                        <input type="number" step="0.0001" name="quantidade" required placeholder="Ex: 100" class="w-full bg-dark border border-border rounded-sm px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-400 mb-1">Preço Unitário (R$)</label>
-                        <input type="number" step="0.01" name="preco_unitario" required placeholder="Ex: 35.50" class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
+                        <input type="number" step="0.01" name="preco_unitario" required placeholder="Ex: 35.50" class="w-full bg-dark border border-border rounded-sm px-4 py-2.5 text-white focus:outline-none focus:border-primary transition-colors">
                     </div>
                 </div>
 
                 <div class="pt-4">
-                    <button type="submit" class="w-full bg-primary hover:bg-primaryHover text-white font-medium py-2.5 rounded-lg transition-colors shadow-lg shadow-primary/20">
+                    <button type="submit" class="w-full bg-primary hover:bg-primaryHover text-white font-medium py-2.5 rounded-sm transition-colors shadow-lg shadow-primary/20">
                         Salvar Transação
                     </button>
                 </div>
