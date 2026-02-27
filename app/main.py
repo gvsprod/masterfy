@@ -186,12 +186,23 @@ def dashboard_web(request: Request, db: sqlite3.Connection = Depends(get_db)):
     portfolio_data = obter_portfolio(db)
     
     cursor = db.cursor()
+    # Busca os ativos para o formulário
     cursor.execute("SELECT id, ticker FROM ativos ORDER BY ticker")
     ativos = [dict(row) for row in cursor.fetchall()]
     
+    # NOVO: Calcula a soma total de todos os proventos da carteira
+    cursor.execute("SELECT SUM(valor) FROM proventos")
+    resultado = cursor.fetchone()[0]
+    total_proventos = resultado if resultado else 0.0
+    
     return templates.TemplateResponse(
         "index.html", 
-        {"request": request, "portfolio": portfolio_data, "ativos": ativos}
+        {
+            "request": request, 
+            "portfolio": portfolio_data, 
+            "ativos": ativos,
+            "total_proventos": total_proventos # Passamos o valor para o HTML
+        }
     )
 
 @app.post("/web/ativos/")
