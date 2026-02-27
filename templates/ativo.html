@@ -82,7 +82,7 @@
                         <tbody class="divide-y divide-border">
                             {% for t in transacoes %}
                             <tr class="hover:bg-white/[0.02] transition-colors">
-                                <td class="px-6 py-4 text-white text-sm">{{ t.data }}</td>
+                                <td class="px-6 py-4 text-white text-sm">{{ t.data | data_br }}</td>
                                 <td class="px-6 py-4">
                                     {% if t.tipo_transacao == 'COMPRA' %}
                                         <span class="text-emerald-400 font-medium text-xs">COMPRA</span>
@@ -90,7 +90,7 @@
                                         <span class="text-red-400 font-medium text-xs">VENDA</span>
                                     {% endif %}
                                 </td>
-                                <td class="px-6 py-4 text-right text-white text-sm">{{ t.quantidade }}</td>
+                                <td class="px-6 py-4 text-right text-white text-sm">{{ t.quantidade | qtd }}</td>
                                 <td class="px-6 py-4 text-right text-gray-400 text-sm">R$ {{ t.preco_unitario | moeda }}</td>
                                 <td class="px-6 py-4 flex justify-center gap-3">
                                     <button onclick="abrirModalEdicao({{ t.id }}, '{{ t.data }}', '{{ t.tipo_transacao }}', {{ t.quantidade }}, {{ t.preco_unitario }})" class="text-blue-400 hover:text-blue-300 text-sm">Editar</button>
@@ -121,7 +121,7 @@
                         <tbody class="divide-y divide-border">
                             {% for p in proventos %}
                             <tr class="hover:bg-white/[0.02] transition-colors">
-                                <td class="px-6 py-4 text-white text-sm">{{ p.data }}</td>
+                                <td class="px-6 py-4 text-white text-sm">{{ p.data | data_br }}</td>
                                 <td class="px-6 py-4 text-gray-300 text-sm">{{ p.tipo }}</td>
                                 <td class="px-6 py-4 text-right text-primary font-medium text-sm">+ R$ {{ p.valor | moeda }}</td>
                                 <td class="px-6 py-4 flex justify-center">

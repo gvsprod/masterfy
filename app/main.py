@@ -81,6 +81,26 @@ def format_moeda(valor):
     return f"{valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
 templates.env.filters["moeda"] = format_moeda
 
+# 1. NOVO: Filtro para formatar a Data (DD/MM/YYYY)
+def format_data_br(data_str):
+    if not data_str: return ""
+    partes = data_str.split('-')
+    if len(partes) == 3:
+        return f"{partes[2]}/{partes[1]}/{partes[0]}"
+    return data_str
+templates.env.filters["data_br"] = format_data_br
+
+# 2. NOVO: Filtro para limpar a Quantidade (tira o .0)
+def format_qtd(valor):
+    try:
+        valor_float = float(valor)
+        if valor_float.is_integer():
+            return int(valor_float)
+        return valor_float
+    except:
+        return valor
+templates.env.filters["qtd"] = format_qtd
+
 # --- MODELOS (PYDANTIC) ---
 class PosicaoAtivo(BaseModel):
     ativo_id: int
