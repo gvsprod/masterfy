@@ -230,7 +230,7 @@ def registrar_transacao_web(
     db.commit()
     return RedirectResponse(url="/", status_code=303)
 
-@@app.get("/ativo/{ativo_id}", response_class=HTMLResponse)
+@app.get("/ativo/{ativo_id}", response_class=HTMLResponse)
 def detalhes_ativo(request: Request, ativo_id: int, db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("SELECT * FROM ativos WHERE id = ?", (ativo_id,))
