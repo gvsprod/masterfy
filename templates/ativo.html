@@ -37,45 +37,92 @@
     </nav>
 
     <main class="max-w-7xl mx-auto px-4 py-8">
-        <div class="bg-card border border-border rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-dark/50 text-gray-400 text-xs uppercase tracking-wider border-b border-border">
-                            <th class="px-6 py-4 font-medium">Data</th>
-                            <th class="px-6 py-4 font-medium">Tipo</th>
-                            <th class="px-6 py-4 font-medium text-right">Qtd</th>
-                            <th class="px-6 py-4 font-medium text-right">Preço Unit.</th>
-                            <th class="px-6 py-4 font-medium text-center">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border">
-                        {% for t in transacoes %}
-                        <tr class="hover:bg-white/[0.02] transition-colors">
-                            <td class="px-6 py-4 text-white">{{ t.data }}</td>
-                            <td class="px-6 py-4">
-                                {% if t.tipo_transacao == 'COMPRA' %}
-                                    <span class="text-emerald-400 font-medium text-sm">COMPRA</span>
-                                {% else %}
-                                    <span class="text-red-400 font-medium text-sm">VENDA</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-6 py-4 text-right text-white">{{ t.quantidade }}</td>
-                            <td class="px-6 py-4 text-right text-gray-400">R$ {{ t.preco_unitario | moeda if t.preco_unitario else t.preco_unitario }}</td>
-                            <td class="px-6 py-4 flex justify-center gap-3">
-                                <button onclick="abrirModalEdicao({{ t.id }}, '{{ t.data }}', '{{ t.tipo_transacao }}', {{ t.quantidade }}, {{ t.preco_unitario }})" class="text-blue-400 hover:text-blue-300">
-                                    Editar
-                                </button>
-                                
-                                <form action="/web/transacoes/{{ t.id }}/deletar" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta transação?');">
-                                    <input type="hidden" name="ativo_id" value="{{ ativo.id }}">
-                                    <button type="submit" class="text-red-400 hover:text-red-300">Excluir</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        
+        <div class="mb-8 flex justify-between items-center bg-card border border-border p-6 rounded-2xl shadow-lg shadow-black/20">
+            <div>
+                <p class="text-sm font-medium text-gray-400 mb-1">Total Recebido em Proventos</p>
+                <h2 class="text-3xl font-bold text-primary">R$ {{ total_proventos | moeda }}</h2>
+            </div>
+            <button onclick="document.getElementById('modal-provento').classList.remove('hidden')" class="bg-primary hover:bg-primaryHover text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                Novo Provento
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div>
+                <h3 class="text-lg font-semibold text-white mb-4">Transações</h3>
+                <div class="bg-card border border-border rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-dark/50 text-gray-400 text-xs uppercase tracking-wider border-b border-border">
+                                <th class="px-6 py-4 font-medium">Data</th>
+                                <th class="px-6 py-4 font-medium">Tipo</th>
+                                <th class="px-6 py-4 font-medium text-right">Qtd</th>
+                                <th class="px-6 py-4 font-medium text-right">Preço</th>
+                                <th class="px-6 py-4 font-medium text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border">
+                            {% for t in transacoes %}
+                            <tr class="hover:bg-white/[0.02] transition-colors">
+                                <td class="px-6 py-4 text-white text-sm">{{ t.data }}</td>
+                                <td class="px-6 py-4">
+                                    {% if t.tipo_transacao == 'COMPRA' %}
+                                        <span class="text-emerald-400 font-medium text-xs">COMPRA</span>
+                                    {% else %}
+                                        <span class="text-red-400 font-medium text-xs">VENDA</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 text-right text-white text-sm">{{ t.quantidade }}</td>
+                                <td class="px-6 py-4 text-right text-gray-400 text-sm">R$ {{ t.preco_unitario | moeda }}</td>
+                                <td class="px-6 py-4 flex justify-center gap-3">
+                                    <button onclick="abrirModalEdicao({{ t.id }}, '{{ t.data }}', '{{ t.tipo_transacao }}', {{ t.quantidade }}, {{ t.preco_unitario }})" class="text-blue-400 hover:text-blue-300 text-sm">Editar</button>
+                                    <form action="/web/transacoes/{{ t.id }}/deletar" method="POST" onsubmit="return confirm('Excluir transação?');">
+                                        <input type="hidden" name="ativo_id" value="{{ ativo.id }}">
+                                        <button type="submit" class="text-red-400 hover:text-red-300 text-sm">Excluir</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-lg font-semibold text-white mb-4">Proventos Recebidos</h3>
+                <div class="bg-card border border-border rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-dark/50 text-gray-400 text-xs uppercase tracking-wider border-b border-border">
+                                <th class="px-6 py-4 font-medium">Data</th>
+                                <th class="px-6 py-4 font-medium">Tipo</th>
+                                <th class="px-6 py-4 font-medium text-right">Valor Líquido</th>
+                                <th class="px-6 py-4 font-medium text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border">
+                            {% for p in proventos %}
+                            <tr class="hover:bg-white/[0.02] transition-colors">
+                                <td class="px-6 py-4 text-white text-sm">{{ p.data }}</td>
+                                <td class="px-6 py-4 text-gray-300 text-sm">{{ p.tipo }}</td>
+                                <td class="px-6 py-4 text-right text-primary font-medium text-sm">+ R$ {{ p.valor | moeda }}</td>
+                                <td class="px-6 py-4 flex justify-center">
+                                    <form action="/web/proventos/{{ p.id }}/deletar" method="POST" onsubmit="return confirm('Excluir este provento?');">
+                                        <input type="hidden" name="ativo_id" value="{{ ativo.id }}">
+                                        <button type="submit" class="text-red-400 hover:text-red-300 text-sm">Excluir</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="px-6 py-8 text-center text-gray-500 text-sm">Nenhum provento registrado ainda.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </main>
@@ -151,6 +198,46 @@
                 <div class="pt-4">
                     <button type="submit" class="w-full bg-primary hover:bg-primaryHover text-white font-medium py-2.5 rounded-lg transition-colors shadow-lg shadow-primary/20">
                         Salvar Alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+	
+	<div id="modal-provento" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-card border border-border rounded-2xl shadow-2xl shadow-black max-w-sm w-full p-6 relative">
+            <button onclick="document.getElementById('modal-provento').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
+            <h3 class="text-xl font-semibold text-white mb-6">Lançar Provento</h3>
+
+            <form action="/web/proventos/" method="POST" class="space-y-4">
+                <input type="hidden" name="ativo_id" value="{{ ativo.id }}">
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Data do Recebimento</label>
+                    <input type="date" name="data" required class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Tipo</label>
+                    <select name="tipo" required class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary">
+                        <option value="Dividendo">Dividendo</option>
+                        <option value="JCP">Juros sobre Capital Próprio (JCP)</option>
+                        <option value="Rendimento FII">Rendimento (FII)</option>
+                        <option value="Restituição">Restituição de Capital</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Valor Total Líquido (R$)</label>
+                    <input type="number" step="0.01" name="valor" required placeholder="Ex: 45.50" class="w-full bg-dark border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary">
+                </div>
+
+                <div class="pt-4">
+                    <button type="submit" class="w-full bg-primary hover:bg-primaryHover text-white font-medium py-2.5 rounded-lg transition-colors shadow-lg shadow-primary/20">
+                        Salvar Provento
                     </button>
                 </div>
             </form>

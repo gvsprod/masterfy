@@ -50,6 +50,17 @@ def aplicar_patch_banco():
     if 'preco_atual' not in colunas:
         cursor.execute("ALTER TABLE ativos ADD COLUMN preco_atual REAL DEFAULT 0.0")
         
+    # NOVO: Tabela de Proventos
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS proventos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ativo_id INTEGER,
+            data TEXT,
+            tipo TEXT,
+            valor REAL,
+            FOREIGN KEY(ativo_id) REFERENCES ativos(id)
+        )
+    """)
     conexao.commit()
     conexao.close()
 
@@ -219,7 +230,7 @@ def registrar_transacao_web(
     db.commit()
     return RedirectResponse(url="/", status_code=303)
 
-@app.get("/ativo/{ativo_id}", response_class=HTMLResponse)
+@@app.get("/ativo/{ativo_id}", response_class=HTMLResponse)
 def detalhes_ativo(request: Request, ativo_id: int, db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("SELECT * FROM ativos WHERE id = ?", (ativo_id,))
@@ -230,9 +241,18 @@ def detalhes_ativo(request: Request, ativo_id: int, db: sqlite3.Connection = Dep
     cursor.execute("SELECT * FROM transacoes WHERE ativo_id = ? ORDER BY data DESC", (ativo_id,))
     transacoes = [dict(linha) for linha in cursor.fetchall()]
     
+    # NOVO: Busca os proventos e soma o total
+    cursor.execute("SELECT * FROM proventos WHERE ativo_id = ? ORDER BY data DESC", (ativo_id,))
+    proventos = [dict(linha) for linha in cursor.fetchall()]
+    total_proventos = sum(p['valor'] for p in proventos)
+    
     return templates.TemplateResponse(
         "ativo.html", 
-        {"request": request, "ativo": dict(ativo), "transacoes": transacoes}
+        {
+            "request": request, "ativo": dict(ativo), 
+            "transacoes": transacoes, "proventos": proventos, 
+            "total_proventos": total_proventos
+        }
     )
 
 @app.post("/web/transacoes/{transacao_id}/deletar")
@@ -282,3 +302,30 @@ def baixar_backup_manual():
     if os.path.exists(DB_PATH):
         return FileResponse(path=DB_PATH, media_type='application/octet-stream', filename=nome_arquivo)
     raise HTTPException(status_code=404, detail="Banco de dados não encontrado.")
+    
+ @app.post("/web/proventos/")
+def registrar_provento_web(
+    ativo_id: int = Form(...),
+    data: str = Form(...),
+    tipo: str = Form(...),
+    valor: float = Form(...),
+    db: sqlite3.Connection = Depends(get_db)
+):
+    cursor = db.cursor()
+    cursor.execute(
+        "INSERT INTO proventos (ativo_id, data, tipo, valor) VALUES (?, ?, ?, ?)",
+        (ativo_id, data, tipo, valor)
+    )
+    db.commit()
+    return RedirectResponse(url=f"/ativo/{ativo_id}", status_code=303)
+
+@app.post("/web/proventos/{provento_id}/deletar")
+def deletar_provento_web(
+    provento_id: int, 
+    ativo_id: int = Form(...), 
+    db: sqlite3.Connection = Depends(get_db)
+):
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM proventos WHERE id = ?", (provento_id,))
+    db.commit()
+    return RedirectResponse(url=f"/ativo/{ativo_id}", status_code=303)
