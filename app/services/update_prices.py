@@ -1,6 +1,11 @@
 import sqlite3
 import os
 from datetime import date
+
+# --- HACK PARA O PYTHON ACHAR A PASTA 'app' ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.abspath(os.path.join(BASE_DIR, '..', '..')))
+
 from app.services.price_engine import buscar_preco_acao
 
 # --- CONFIGURAÇÃO DO CAMINHO DA BASE DE DADOS ---
