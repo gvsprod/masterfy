@@ -13,8 +13,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copia todo o resto do seu código (app, templates, etc) para o container
 COPY . .
 
-# Cria um usuário sem privilégios para executar a aplicação
-RUN useradd -m appuser && chown -R appuser /masterfy
+# Cria a pasta data, o usuário sem privilégios e ajusta as permissões de tudo
+RUN mkdir -p /masterfy/data && \
+    useradd -m appuser && \
+    chown -R appuser:appuser /masterfy
+
 USER appuser
 
 # Expõe a porta que o FastAPI usa
