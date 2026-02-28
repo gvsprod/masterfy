@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import sys
 from datetime import date
 
 # --- HACK PARA O PYTHON ACHAR A PASTA 'app' ---
