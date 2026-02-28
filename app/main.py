@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from apscheduler.schedulers.background import BackgroundScheduler
+from contextlib import asynccontextmanager
 
 # Importando os nossos motores
 from app.database import iniciar_banco
@@ -29,6 +30,7 @@ def get_db():
     # OTIMIZAÇÃO: Ativa o modo WAL (Write-Ahead Logging) para concorrência
     conexao.execute("PRAGMA journal_mode=WAL;")
     conexao.execute("PRAGMA synchronous=NORMAL;")
+    conexao.execute("PRAGMA foreign_keys=ON;")
     try:
         yield conexao
     finally:
@@ -64,16 +66,23 @@ def aplicar_patch_banco():
     conexao.commit()
     conexao.close()
 
-aplicar_patch_banco()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Executa ao ligar a aplicação
+    aplicar_patch_banco()
 
-# --- AUTOMAÇÃO (CRON) ---
-agendador = BackgroundScheduler()
-agendador.add_job(atualizar_precos_b3, trigger='cron', day_of_week='mon-fri', hour=18, minute=0)
-agendador.add_job(realizar_backup_diario, trigger='cron', hour=2, minute=0)
-agendador.start()
+    agendador = BackgroundScheduler()
+    agendador.add_job(atualizar_precos_b3, trigger='cron', day_of_week='mon-fri', hour=18, minute=0)
+    agendador.add_job(realizar_backup_diario, trigger='cron', hour=2, minute=0)
+    agendador.start()
+
+    yield # A aplicação fica rodando neste ponto
+
+    # Executa ao desligar a aplicação
+    agendador.shutdown()
 
 # --- INICIALIZANDO A API ---
-app = FastAPI(title="masterfy API")
+app = FastAPI(title="masterfy API", lifespan=lifespan)
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, '..', 'templates'))
 
 # --- FILTROS DO JINJA2 ---

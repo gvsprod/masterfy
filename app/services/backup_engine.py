@@ -1,5 +1,5 @@
 import os
-import shutil
+import sqlite3
 from datetime import datetime
 import glob
 
@@ -20,8 +20,13 @@ def realizar_backup_diario():
     backup_path = os.path.join(BACKUP_DIR, f'masterfy_backup_{data_atual}.db')
     
     try:
-        # Copia o arquivo
-        shutil.copy2(DB_PATH, backup_path)
+        # Copia o arquivo usando a API nativa do SQLite
+        source = sqlite3.connect(DB_PATH)
+        dest = sqlite3.connect(backup_path)
+        with source, dest:
+            source.backup(dest)
+        source.close()
+        dest.close()
         print(f"✅ Backup realizado: {backup_path}")
         
         # Limpa backups antigos (mantém apenas os 7 mais recentes)

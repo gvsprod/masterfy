@@ -26,26 +26,25 @@ def atualizar_precos_b3():
     ativos = cursor.fetchall()
     
     # 2. Faz o loop para buscar e atualizar o preço de cada um
+    atualizacoes = []
     for ativo in ativos:
         ativo_id = ativo[0]
         ticker = ativo[1]
-        
+
         try:
             preco_hoje = buscar_preco_acao(ticker)
-            
             if preco_hoje and preco_hoje > 0:
-                # 3. Guarda o preço na nova coluna "preco_atual"
-                cursor.execute(
-                    "UPDATE ativos SET preco_atual = ? WHERE id = ?",
-                    (preco_hoje, ativo_id)
-                )
-                print(f"✅ {ticker} atualizado com sucesso: R$ {preco_hoje:.2f}")
+                atualizacoes.append((preco_hoje, ativo_id))
+                print(f"✅ {ticker} obtido com sucesso: R$ {preco_hoje:.2f}")
             else:
                 print(f"⚠️ Aviso: Não foi possível obter o preço para {ticker}.")
-                
         except Exception as e:
             print(f"❌ Erro ao processar {ticker}: {e}")
-            
+
+    # 3. Executa todas as atualizações de uma única vez (Batch Update)
+    if atualizacoes:
+        cursor.executemany("UPDATE ativos SET preco_atual = ? WHERE id = ?", atualizacoes)
+
     # 4. Grava as alterações e fecha a ligação
     conexao.commit()
     conexao.close()
